@@ -1,0 +1,17 @@
+@config "../tailwind.config.js";
+@import "tailwindcss";
+
+:root {
+  --background: #fafaf2;
+  --foreground: #1f3a42;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+}
+
+body {
+  @apply bg-areia text-petroleo-tinta;
+  font-family: var(--font-inter), sans-serif;
+}
