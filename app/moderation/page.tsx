@@ -1,170 +1,127 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { ArrowLeft, BadgeCheck, Check, Clock3, LoaderCircle, MapPin, X } from 'lucide-react';
-import { getCategoryName, getPendingAds, moderateAd } from '../../lib/ads';
-import type { Ad, ModerationAction } from '../../lib/ads';
+
+interface PendingAd {
+  id: string;
+  title: string;
+  category: string;
+  author: string;
+  phone: string;
+  description: string;
+  date: string;
+}
 
 export default function ModerationPage() {
-  const [ads, setAds] = useState<Ad[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [loadError, setLoadError] = useState('');
-  const [error, setError] = useState('');
+  const [pendingAds, setPendingAds] = useState<PendingAd[]>([
+    {
+      id: '1',
+      title: 'Aulas particulares de matemática',
+      category: 'Serviços',
+      author: 'João Silva',
+      phone: '(81) 98888-0000',
+      description: 'Aulas de reforço para ensino fundamental e médio. Atendimento a domicílio no bairro.',
+      date: '21/10/2026',
+    },
+    {
+      id: '2',
+      title: 'Marmita caseira tradicional',
+      category: 'Alimentação',
+      author: 'Maria do Carmo',
+      phone: '(81) 97777-1111',
+      description: 'Marmitas feitas na hora com tempero caseiro. Entrega grátis na região.',
+      date: '21/10/2026',
+    },
+  ]);
 
-  useEffect(() => {
-    let isCurrent = true;
-    getPendingAds()
-      .then((pendingAds) => {
-        if (isCurrent) setAds(pendingAds);
-      })
-      .catch((requestError: unknown) => {
-        if (isCurrent) {
-          setLoadError(
-            requestError instanceof Error
-              ? requestError.message
-              : 'Não foi possível carregar a fila de moderação.',
-          );
-        }
-      })
-      .finally(() => {
-        if (isCurrent) setIsLoading(false);
-      });
+  const handleApprove = (id: string) => {
+    setPendingAds((prev) => prev.filter((ad) => ad.id !== id));
+  };
 
-    return () => {
-      isCurrent = false;
-    };
-  }, []);
-
-  async function handleModeration(id: string, action: ModerationAction) {
-    setBusyId(id);
-    setError('');
-    try {
-      await moderateAd(id, action);
-      setAds((currentAds) => currentAds.filter((ad) => ad.id !== id));
-    } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : 'Não foi possível atualizar o anúncio. Tente novamente.',
-      );
-    } finally {
-      setBusyId(null);
-    }
-  }
+  const handleReject = (id: string) => {
+    setPendingAds((prev) => prev.filter((ad) => ad.id !== id));
+  };
 
   return (
-    <main className="min-h-screen bg-stone-50 text-slate-900">
-      <header className="border-b border-stone-200 bg-white">
-        <div className="mx-auto flex min-h-16 max-w-5xl items-center justify-between gap-4 px-4 sm:px-6">
-          <Link
-            href="/"
-            className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-slate-700 hover:text-emerald-800"
-          >
-            <ArrowLeft aria-hidden="true" size={18} />
-            Vitrine
-          </Link>
-          <span className="text-sm font-extrabold text-emerald-950">ISAC Conecta</span>
+    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
+      {/* Cabeçalho */}
+      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <Link 
+          href="/" 
+          className="inline-flex items-center text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+        >
+          <span className="mr-2">&larr;</span> Vitrine
+        </Link>
+        <div className="font-bold text-lg text-gray-900">
+          ISAC Conecta
         </div>
       </header>
 
-      <section className="mx-auto max-w-5xl px-4 py-9 sm:px-6 sm:py-12">
-        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-stone-200 pb-5">
+      {/* Conteúdo Principal */}
+      <main className="max-w-4xl mx-auto px-4 py-10">
+        <div className="flex items-center justify-between mb-8">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-emerald-800">
-              Painel da equipe
-            </p>
-            <h1 className="mt-1 text-3xl font-extrabold tracking-tight">Fila de moderação</h1>
+            <span className="text-xs font-bold tracking-wider text-gray-500 uppercase">
+              PAINEL DA EQUIPE
+            </span>
+            <h1 className="text-3xl font-extrabold text-gray-900 mt-1">
+              Fila de moderação
+            </h1>
           </div>
-          {!isLoading && <p className="text-sm text-slate-600">{ads.length} pendentes</p>}
+          <span className="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-full">
+            {pendingAds.length} pendentes
+          </span>
         </div>
 
-        {(loadError || error) && (
-          <p role="alert" className="mt-5 rounded-md border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-900">
-            {error || loadError}
-          </p>
-        )}
-
-        {isLoading ? (
-          <p className="flex items-center gap-2 py-10 text-sm text-slate-600" role="status">
-            <LoaderCircle aria-hidden="true" className="animate-spin" size={18} />
-            Carregando anúncios...
-          </p>
-        ) : loadError ? (
-          <p className="py-8 text-sm text-slate-600">A fila não pôde ser carregada.</p>
-        ) : ads.length === 0 ? (
-          <div className="py-14 text-center">
-            <BadgeCheck aria-hidden="true" className="mx-auto text-emerald-800" size={30} />
-            <h2 className="mt-3 text-lg font-bold">Fila em dia</h2>
-            <p className="mt-1 text-sm text-slate-600">Não há anúncios aguardando revisão.</p>
-          </div>
-        ) : (
-          <ul className="divide-y divide-stone-200">
-            {ads.map((ad) => (
-              <li key={ad.id} className="grid gap-5 py-6 sm:grid-cols-[1fr_auto] sm:items-center">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">
-                      {getCategoryName(ad)}
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-xs text-slate-500">
-                      <Clock3 aria-hidden="true" size={14} />
-                      Aguardando aprovação
-                    </span>
-                  </div>
-                  <h2 className="mt-2 text-lg font-bold">{ad.title}</h2>
-                  {ad.description && (
-                    <p className="mt-1 line-clamp-3 text-sm leading-6 text-slate-600">
-                      {ad.description}
+        {/* Fila de Anúncios Pendentes */}
+        <div className="space-y-4">
+          {pendingAds.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-10 text-center text-gray-500 shadow-sm">
+              <p className="text-base font-semibold text-gray-700">Tudo limpo por aqui!</p>
+              <p className="text-sm mt-1">Nenhum anúncio pendente na fila de moderação.</p>
+            </div>
+          ) : (
+            pendingAds.map((ad) => (
+              <div
+                key={ad.id}
+                className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm space-y-4"
+              >
+                <div className="flex items-start justify-between border-b border-gray-100 pb-3">
+                  <div>
+                    <h3 className="font-bold text-gray-900 text-lg">{ad.title}</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Enviado por <span className="font-medium text-gray-700">{ad.author}</span> ({ad.phone}) &bull; {ad.date}
                     </p>
-                  )}
-                  <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-600">
-                    <span className="font-semibold text-emerald-800">
-                      {ad.price === null
-                        ? 'A combinar'
-                        : new Intl.NumberFormat('pt-BR', {
-                            style: 'currency',
-                            currency: 'BRL',
-                          }).format(ad.price)}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <MapPin aria-hidden="true" size={15} />
-                      {ad.location || 'Local não informado'}
-                    </span>
-                    {ad.contact_phone && <span>{ad.contact_phone}</span>}
                   </div>
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-gray-100 text-gray-700">
+                    {ad.category}
+                  </span>
                 </div>
 
-                <div className="flex gap-2 sm:justify-end">
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  {ad.description}
+                </p>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
                   <button
-                    type="button"
-                    onClick={() => handleModeration(ad.id, 'approve')}
-                    disabled={busyId !== null}
-                    className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-md bg-emerald-800 px-4 text-sm font-bold text-white transition-colors hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-55 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800 sm:flex-none"
+                    onClick={() => handleReject(ad.id)}
+                    className="px-4 py-2 rounded-lg text-sm font-medium border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
                   >
-                    {busyId === ad.id ? (
-                      <LoaderCircle aria-hidden="true" className="animate-spin" size={16} />
-                    ) : (
-                      <Check aria-hidden="true" size={16} />
-                    )}
-                    Aprovar
+                    Recusar
                   </button>
                   <button
-                    type="button"
-                    onClick={() => handleModeration(ad.id, 'reject')}
-                    disabled={busyId !== null}
-                    className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-md border border-red-300 px-4 text-sm font-bold text-red-800 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-55 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-800 sm:flex-none"
+                    onClick={() => handleApprove(ad.id)}
+                    className="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm transition-colors"
                   >
-                    <X aria-hidden="true" size={16} />
-                    Descartar
+                    Aprovar anúncio
                   </button>
                 </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </main>
+              </div>
+            ))
+          )}
+        </div>
+      </main>
+    </div>
   );
 }
