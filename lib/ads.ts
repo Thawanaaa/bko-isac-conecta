@@ -57,6 +57,7 @@ async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     response = await fetch(`${apiUrl}${path}`, {
       ...init,
+      credentials: 'include',
       headers: {
         ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
         ...init?.headers,

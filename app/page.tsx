@@ -72,14 +72,29 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-stone-50 text-slate-900">
       <header className="border-b border-stone-200 bg-white">
-        <div className="mx-auto flex min-h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+        <div className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-4 px-4 sm:flex-nowrap sm:px-6">
           <Link href="/" className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
             <span className="grid size-9 place-items-center rounded-md bg-emerald-800 text-white">
               <Store aria-hidden="true" size={19} />
             </span>
             ISAC Conecta
           </Link>
-          <nav aria-label="Navegação principal" className="flex items-center gap-2">
+          <nav
+            aria-label="Navegação principal"
+            className="flex w-full items-center justify-end gap-1 pb-3 sm:w-auto sm:gap-2 sm:pb-0"
+          >
+            <Link
+              href="/login"
+              className="inline-flex min-h-11 items-center rounded-md px-3 text-sm font-semibold text-slate-700 hover:bg-stone-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
+            >
+              Login
+            </Link>
+            <Link
+              href="/signup"
+              className="inline-flex min-h-11 items-center rounded-md border border-emerald-800 px-3 text-sm font-semibold text-emerald-900 transition-colors hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
+            >
+              Criar conta
+            </Link>
             <Link
               href="/moderation"
               className="hidden min-h-11 items-center gap-2 rounded-md px-3 text-sm font-semibold text-slate-700 hover:bg-stone-100 sm:inline-flex"
