@@ -1,10 +1,13 @@
 import Link from 'next/link';
+import { io } from 'next/cache';
 import { Suspense } from 'react';
 import { ArrowRight, ClipboardList, Store } from 'lucide-react';
 import AdCard from '../components/AdCard';
 import { getActiveAds, getCategoryName, type Ad } from '../lib/ads';
 
 async function ActiveAds() {
+  await io();
+
   let ads: Ad[] = [];
   let errorMessage = '';
 

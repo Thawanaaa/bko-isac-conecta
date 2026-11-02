@@ -3,14 +3,121 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { ArrowLeft, CheckCircle2, LoaderCircle, Send } from 'lucide-react';
+import {
+  ArrowLeft,
+  CheckCircle2,
+  ImagePlus,
+  LoaderCircle,
+  Send,
+} from 'lucide-react';
 import { submitRawMessage } from '../../lib/ads';
+
+interface ExtractedAd {
+  name: string;
+  category: string;
+  price: string;
+  description: string;
+  contact: string;
+}
+
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isExtractedAd(value: unknown): value is ExtractedAd {
+  return (
+    isRecord(value) &&
+    ['name', 'category', 'price', 'description', 'contact'].every(
+      (field) => field in value && typeof value[field] === 'string',
+    )
+  );
+}
 
 export default function PublishPage() {
   const [message, setMessage] = useState('');
+  const [image, setImage] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+
+  function handleImageChange(file: File | undefined) {
+    setError('');
+    setSuccess(false);
+    if (!file) {
+      setImage(null);
+      return;
+    }
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      setImage(null);
+      setError('Envie uma imagem JPG, PNG ou WEBP.');
+      return;
+    }
+    if (file.size > MAX_IMAGE_SIZE) {
+      setImage(null);
+      setError('A imagem deve ter no máximo 10 MB.');
+      return;
+    }
+    setImage(file);
+  }
+
+  async function handleImageExtraction() {
+    if (!image) return;
+
+    setIsExtracting(true);
+    setSuccess(false);
+    setError('');
+    try {
+      const formData = new FormData();
+      formData.append('image', image);
+      const response = await fetch('/api/ads/process-image', {
+        method: 'POST',
+        body: formData,
+      });
+      let result: unknown;
+      try {
+        result = await response.json();
+      } catch {
+        throw new Error('Não foi possível ler a resposta da extração. Tente novamente.');
+      }
+      if (!response.ok) {
+        const requestError =
+          typeof result === 'object' &&
+          result !== null &&
+          'message' in result &&
+          typeof result.message === 'string'
+            ? result.message
+            : 'Não foi possível extrair os dados da imagem.';
+        throw new Error(requestError);
+      }
+
+      if (!isExtractedAd(result)) {
+        throw new Error('O serviço de extração retornou dados inválidos.');
+      }
+
+      const ad = result;
+      setMessage(
+        [
+          `Nome: ${ad.name}`,
+          `Categoria: ${ad.category}`,
+          `Preço: ${ad.price || 'Não informado'}`,
+          `Descrição: ${ad.description}`,
+          ...(ad.contact ? [`Contato: ${ad.contact}`] : []),
+        ].join('\n'),
+      );
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'Não foi possível extrair os dados da imagem. Tente novamente.',
+      );
+    } finally {
+      setIsExtracting(false);
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -61,14 +168,55 @@ export default function PublishPage() {
           Publicar anúncio
         </h1>
         <p className="mt-3 max-w-2xl leading-7 text-slate-600">
-          Cole sua mensagem como você enviaria no WhatsApp. Ela será encaminhada para processamento.
+          Envie uma foto para extrair os dados do anúncio ou cole uma mensagem como você enviaria
+          no WhatsApp.
         </p>
 
         <form
           onSubmit={handleSubmit}
           className="mt-8 rounded-lg border border-stone-200 bg-white p-5 shadow-sm sm:p-7"
         >
-          <label htmlFor="raw-message" className="block text-sm font-bold text-slate-900">
+          <label htmlFor="ad-image" className="block text-sm font-bold text-slate-900">
+            Foto do anúncio
+          </label>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <label
+              htmlFor="ad-image"
+              className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-stone-300 px-4 text-sm font-semibold text-slate-700 hover:bg-stone-50 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-emerald-800"
+            >
+              <ImagePlus aria-hidden="true" size={17} />
+              Escolher imagem
+            </label>
+            <input
+              id="ad-image"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="sr-only"
+              onChange={(event) => {
+                handleImageChange(event.target.files?.[0]);
+                event.currentTarget.value = '';
+              }}
+            />
+            {image && (
+              <span className="max-w-full truncate text-sm text-slate-600">{image.name}</span>
+            )}
+            <button
+              type="button"
+              onClick={handleImageExtraction}
+              disabled={!image || isExtracting || isSubmitting}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-emerald-800 px-4 text-sm font-bold text-white transition-colors hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-55 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
+            >
+              {isExtracting ? (
+                <LoaderCircle aria-hidden="true" className="animate-spin" size={17} />
+              ) : (
+                <ImagePlus aria-hidden="true" size={16} />
+              )}
+              {isExtracting ? 'Extraindo...' : 'Extrair dados da imagem'}
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-slate-500">JPG, PNG ou WEBP, até 10 MB.</p>
+
+          <label htmlFor="raw-message" className="mt-6 block text-sm font-bold text-slate-900">
             Texto do anúncio
           </label>
           <textarea
@@ -88,7 +236,7 @@ export default function PublishPage() {
             </p>
             <button
               type="submit"
-              disabled={isSubmitting || !message.trim()}
+              disabled={isSubmitting || isExtracting || !message.trim()}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-emerald-800 px-5 text-sm font-bold text-white transition-colors hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-55 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
             >
               {isSubmitting ? (
