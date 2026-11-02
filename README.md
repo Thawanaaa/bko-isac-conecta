@@ -14,6 +14,16 @@ pnpm dev
 bun dev
 ```
 
+## Extração de anúncios por imagem
+
+Para habilitar a extração de nome, categoria, preço, descrição e contato com o Gemini, configure `GEMINI_API_KEY` no arquivo `.env.local` na raiz do projeto:
+
+```env
+GEMINI_API_KEY=sua_chave_da_api
+```
+
+Essa variável é usada somente no servidor. Não use o prefixo `NEXT_PUBLIC_` nem compartilhe a chave no código-fonte.
+
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
