@@ -30,6 +30,8 @@ Configure `NEXT_PUBLIC_API_URL` no `.env.local` com o endereço da API NestJS. A
 
 O cliente só exibe a fila de moderação para contas com papel `moderator` ou `admin`, e exige uma sessão autenticada para publicar. A API NestJS também deve validar essas permissões no servidor, especialmente nas rotas de moderação e de publicação; a proteção da interface não substitui a autorização da API.
 
+Para conceder o primeiro acesso de administrador, crie e confirme a conta normalmente e atualize o papel do perfil correspondente no SQL Editor do Supabase. O procedimento e os endpoints administrativos estão documentados no README da API. Depois, entre novamente no BKO para abrir a área **Usuários**.
+
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.

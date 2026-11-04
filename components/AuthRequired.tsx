@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { hasModerationPower } from '../lib/ads';
+import { hasAdminPower, hasModerationPower } from '../lib/ads';
 import { useCurrentUser } from '../lib/useCurrentUser';
 
 export default function AuthRequired({
@@ -10,7 +10,7 @@ export default function AuthRequired({
   requiredRole,
 }: {
   children: ReactNode;
-  requiredRole?: 'moderator';
+  requiredRole?: 'moderator' | 'admin';
 }) {
   const { user, isLoading, error } = useCurrentUser();
 
@@ -30,10 +30,17 @@ export default function AuthRequired({
       </div>
     );
   }
-  if (requiredRole === 'moderator' && !hasModerationPower(user)) {
+  if (
+    (requiredRole === 'moderator' && !hasModerationPower(user)) ||
+    (requiredRole === 'admin' && !hasAdminPower(user))
+  ) {
     return (
       <div className="m-6 rounded-lg border border-salvia bg-white p-6 text-center">
-        <p className="font-semibold">Sua conta não tem permissão para acessar a moderação.</p>
+        <p className="font-semibold">
+          {requiredRole === 'admin'
+            ? 'Sua conta não tem permissão para gerenciar usuários.'
+            : 'Sua conta não tem permissão para acessar a moderação.'}
+        </p>
         <Link href="/" className="mt-3 inline-block font-semibold text-petroleo underline">
           Voltar à vitrine
         </Link>

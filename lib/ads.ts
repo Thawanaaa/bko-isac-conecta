@@ -44,6 +44,10 @@ export function hasModerationPower(user: CurrentUser | null) {
   return user !== null && ['moderator', 'admin'].includes(user.role.toLocaleLowerCase());
 }
 
+export function hasAdminPower(user: CurrentUser | null) {
+  return user !== null && user.role.toLocaleLowerCase() === 'admin';
+}
+
 export interface Shop {
   id: string;
   user_id: string;
@@ -181,6 +185,26 @@ export function updateUserProfile(input: Pick<UserProfile, 'name' | 'phone' | 'b
     throw new Error('O telefone ou a biografia excede o limite permitido.');
   }
   return apiRequest<UserProfile>('/users/profile', {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+}
+
+export function getAdminUsers() {
+  return apiRequest<UserProfile[]>('/admin/users');
+}
+
+export function updateAdminUser(
+  id: string,
+  input: Pick<UserProfile, 'name' | 'phone' | 'bio' | 'role'>,
+) {
+  if (input.name.trim().length < 2 || input.name.trim().length > 120) {
+    throw new Error('O nome deve ter entre 2 e 120 caracteres.');
+  }
+  if ((input.phone?.length ?? 0) > 30 || (input.bio?.length ?? 0) > 500) {
+    throw new Error('O telefone ou a biografia excede o limite permitido.');
+  }
+  return apiRequest<UserProfile>(`/admin/users/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     body: JSON.stringify(input),
   });

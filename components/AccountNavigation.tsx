@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { hasModerationPower, signOut as apiSignOut } from '../lib/ads';
+import { hasAdminPower, hasModerationPower, signOut as apiSignOut } from '../lib/ads';
 import { useCurrentUser } from '../lib/useCurrentUser';
 
 export default function AccountNavigation() {
@@ -30,6 +30,11 @@ export default function AccountNavigation() {
       {hasModerationPower(user) && (
         <Link href="/moderation" className="hidden min-h-11 items-center rounded-md px-2 text-sm font-semibold hover:bg-areia sm:inline-flex">
           Moderação
+        </Link>
+      )}
+      {hasAdminPower(user) && (
+        <Link href="/admin/users" className="hidden min-h-11 items-center rounded-md px-2 text-sm font-semibold hover:bg-areia lg:inline-flex">
+          Usuários
         </Link>
       )}
       <Link href="/my-ads" className="hidden min-h-11 items-center rounded-md px-2 text-sm font-semibold hover:bg-areia md:inline-flex">Meus anúncios</Link>
