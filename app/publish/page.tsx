@@ -10,6 +10,7 @@ import {
   LoaderCircle,
   Send,
 } from 'lucide-react';
+import AuthRequired from '../../components/AuthRequired';
 import { submitRawMessage } from '../../lib/ads';
 
 interface ExtractedAd {
@@ -36,7 +37,7 @@ function isExtractedAd(value: unknown): value is ExtractedAd {
   );
 }
 
-export default function PublishPage() {
+function PublishForm() {
   const [message, setMessage] = useState('');
   const [image, setImage] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -266,4 +267,8 @@ export default function PublishPage() {
       </section>
     </main>
   );
+}
+
+export default function PublishPage() {
+  return <AuthRequired><PublishForm /></AuthRequired>;
 }

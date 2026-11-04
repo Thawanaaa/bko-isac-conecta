@@ -40,6 +40,10 @@ export interface CurrentUser {
   role: string;
 }
 
+export function hasModerationPower(user: CurrentUser | null) {
+  return user !== null && ['moderator', 'admin'].includes(user.role.toLocaleLowerCase());
+}
+
 export interface Shop {
   id: string;
   user_id: string;

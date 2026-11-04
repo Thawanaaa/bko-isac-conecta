@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { signOut as apiSignOut } from '../lib/ads';
+import { hasModerationPower, signOut as apiSignOut } from '../lib/ads';
 import { useCurrentUser } from '../lib/useCurrentUser';
 
 export default function AccountNavigation() {
@@ -27,6 +27,11 @@ export default function AccountNavigation() {
 
   return (
     <div className="flex items-center gap-1">
+      {hasModerationPower(user) && (
+        <Link href="/moderation" className="hidden min-h-11 items-center rounded-md px-2 text-sm font-semibold hover:bg-areia sm:inline-flex">
+          Moderação
+        </Link>
+      )}
       <Link href="/my-ads" className="hidden min-h-11 items-center rounded-md px-2 text-sm font-semibold hover:bg-areia md:inline-flex">Meus anúncios</Link>
       <Link href="/profile" className="hidden min-h-11 items-center rounded-md px-2 text-sm font-semibold hover:bg-areia sm:inline-flex">Perfil</Link>
       <Link href="/shop" className="hidden min-h-11 items-center rounded-md px-2 text-sm font-semibold hover:bg-areia lg:inline-flex">Comércio</Link>

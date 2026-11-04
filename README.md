@@ -24,6 +24,12 @@ GEMINI_API_KEY=sua_chave_da_api
 
 Essa variável é usada somente no servidor. Não use o prefixo `NEXT_PUBLIC_` nem compartilhe a chave no código-fonte.
 
+## API e permissões
+
+Configure `NEXT_PUBLIC_API_URL` no `.env.local` com o endereço da API NestJS. As telas de anúncios, perfil e comércio carregam e salvam os dados por essa API; sem essa configuração, as solicitações não funcionam.
+
+O cliente só exibe a fila de moderação para contas com papel `moderator` ou `admin`, e exige uma sessão autenticada para publicar. A API NestJS também deve validar essas permissões no servidor, especialmente nas rotas de moderação e de publicação; a proteção da interface não substitui a autorização da API.
+
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.

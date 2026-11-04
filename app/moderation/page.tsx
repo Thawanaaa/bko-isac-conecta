@@ -1,127 +1,126 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import AuthRequired from '../../components/AuthRequired';
+import { getCategoryName, getPendingAds, moderateAd, type Ad, type ModerationAction } from '../../lib/ads';
 
-interface PendingAd {
-  id: string;
-  title: string;
-  category: string;
-  author: string;
-  phone: string;
-  description: string;
-  date: string;
-}
+function ModerationQueue() {
+  const [pendingAds, setPendingAds] = useState<Ad[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeAction, setActiveAction] = useState<string | null>(null);
+  const [error, setError] = useState('');
 
-export default function ModerationPage() {
-  const [pendingAds, setPendingAds] = useState<PendingAd[]>([
-    {
-      id: '1',
-      title: 'Aulas particulares de matemática',
-      category: 'Serviços',
-      author: 'João Silva',
-      phone: '(81) 98888-0000',
-      description: 'Aulas de reforço para ensino fundamental e médio. Atendimento a domicílio no bairro.',
-      date: '21/10/2026',
-    },
-    {
-      id: '2',
-      title: 'Marmita caseira tradicional',
-      category: 'Alimentação',
-      author: 'Maria do Carmo',
-      phone: '(81) 97777-1111',
-      description: 'Marmitas feitas na hora com tempero caseiro. Entrega grátis na região.',
-      date: '21/10/2026',
-    },
-  ]);
+  useEffect(() => {
+    let active = true;
 
-  const handleApprove = (id: string) => {
-    setPendingAds((prev) => prev.filter((ad) => ad.id !== id));
-  };
+    getPendingAds()
+      .then((ads) => {
+        if (active) setPendingAds(ads);
+      })
+      .catch((requestError: unknown) => {
+        if (active) {
+          setError(requestError instanceof Error ? requestError.message : 'Não foi possível carregar a fila de moderação.');
+        }
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
 
-  const handleReject = (id: string) => {
-    setPendingAds((prev) => prev.filter((ad) => ad.id !== id));
-  };
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function handleModeration(id: string, action: ModerationAction) {
+    setActiveAction(id);
+    setError('');
+    try {
+      await moderateAd(id, action);
+      setPendingAds((ads) => ads.filter((ad) => ad.id !== id));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Não foi possível atualizar o anúncio.');
+    } finally {
+      setActiveAction(null);
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
-      {/* Cabeçalho */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <Link 
-          href="/" 
-          className="inline-flex items-center text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <span className="mr-2">&larr;</span> Vitrine
-        </Link>
-        <div className="font-bold text-lg text-gray-900">
-          ISAC Conecta
+    <main className="mx-auto max-w-4xl px-4 py-10">
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <span className="text-xs font-bold tracking-wider text-gray-500 uppercase">PAINEL DA EQUIPE</span>
+          <h1 className="mt-1 text-3xl font-extrabold text-gray-900">Fila de moderação</h1>
         </div>
-      </header>
+        <span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-800">
+          {pendingAds.length} pendentes
+        </span>
+      </div>
 
-      {/* Conteúdo Principal */}
-      <main className="max-w-4xl mx-auto px-4 py-10">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <span className="text-xs font-bold tracking-wider text-gray-500 uppercase">
-              PAINEL DA EQUIPE
-            </span>
-            <h1 className="text-3xl font-extrabold text-gray-900 mt-1">
-              Fila de moderação
-            </h1>
-          </div>
-          <span className="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-full">
-            {pendingAds.length} pendentes
-          </span>
+      {error && <p role="alert" className="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-900">{error}</p>}
+      {isLoading ? (
+        <p className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-600">Carregando fila de moderação...</p>
+      ) : pendingAds.length === 0 ? (
+        <div className="rounded-xl border border-gray-200 bg-white p-10 text-center text-gray-500 shadow-sm">
+          <p className="text-base font-semibold text-gray-700">Tudo limpo por aqui!</p>
+          <p className="mt-1 text-sm">Nenhum anúncio pendente na fila de moderação.</p>
         </div>
-
-        {/* Fila de Anúncios Pendentes */}
+      ) : (
         <div className="space-y-4">
-          {pendingAds.length === 0 ? (
-            <div className="bg-white rounded-xl border border-gray-200 p-10 text-center text-gray-500 shadow-sm">
-              <p className="text-base font-semibold text-gray-700">Tudo limpo por aqui!</p>
-              <p className="text-sm mt-1">Nenhum anúncio pendente na fila de moderação.</p>
-            </div>
-          ) : (
-            pendingAds.map((ad) => (
-              <div
-                key={ad.id}
-                className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm space-y-4"
-              >
+          {pendingAds.map((ad) => {
+            const profile = Array.isArray(ad.profiles) ? ad.profiles[0] : ad.profiles;
+            return (
+              <article key={ad.id} className="space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
                 <div className="flex items-start justify-between border-b border-gray-100 pb-3">
                   <div>
-                    <h3 className="font-bold text-gray-900 text-lg">{ad.title}</h3>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      Enviado por <span className="font-medium text-gray-700">{ad.author}</span> ({ad.phone}) &bull; {ad.date}
+                    <h2 className="text-lg font-bold text-gray-900">{ad.title}</h2>
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      Enviado por <span className="font-medium text-gray-700">{profile?.name || 'Usuário'}</span>
+                      {profile?.phone ? ` (${profile.phone})` : ''} &bull; {new Date(ad.created_at).toLocaleDateString('pt-BR')}
                     </p>
                   </div>
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-gray-100 text-gray-700">
-                    {ad.category}
-                  </span>
+                  <span className="rounded-md bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700">{getCategoryName(ad)}</span>
                 </div>
 
-                <p className="text-sm text-gray-600 leading-relaxed">
-                  {ad.description}
-                </p>
+                <p className="text-sm leading-relaxed text-gray-600">{ad.description || 'Sem descrição.'}</p>
 
                 <div className="flex items-center justify-end gap-3 pt-2">
                   <button
-                    onClick={() => handleReject(ad.id)}
-                    className="px-4 py-2 rounded-lg text-sm font-medium border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                    type="button"
+                    disabled={activeAction !== null}
+                    onClick={() => handleModeration(ad.id, 'reject')}
+                    className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
                   >
-                    Recusar
+                    {activeAction === ad.id ? 'Salvando...' : 'Recusar'}
                   </button>
                   <button
-                    onClick={() => handleApprove(ad.id)}
-                    className="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm transition-colors"
+                    type="button"
+                    disabled={activeAction !== null}
+                    onClick={() => handleModeration(ad.id, 'approve')}
+                    className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:opacity-50"
                   >
-                    Aprovar anúncio
+                    {activeAction === ad.id ? 'Salvando...' : 'Aprovar anúncio'}
                   </button>
                 </div>
-              </div>
-            ))
-          )}
+              </article>
+            );
+          })}
         </div>
-      </main>
+      )}
+    </main>
+  );
+}
+
+export default function ModerationPage() {
+  return (
+    <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
+      <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
+        <Link href="/" className="inline-flex items-center text-sm font-medium text-gray-600 transition-colors hover:text-gray-900">
+          <span className="mr-2">&larr;</span> Vitrine
+        </Link>
+        <div className="text-lg font-bold text-gray-900">ISAC Conecta</div>
+      </header>
+      <AuthRequired requiredRole="moderator"><ModerationQueue /></AuthRequired>
     </div>
   );
 }

@@ -1,132 +1,132 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
 import Link from 'next/link';
+import AuthRequired from '../../components/AuthRequired';
+import { getCategories, getShop, updateShop, type Category, type Shop } from '../../lib/ads';
 
-export default function ShopPage() {
-  const [shopName, setShopName] = useState('Padaria da Vila');
-  const [category, setCategory] = useState('Alimentação');
-  const [description, setDescription] = useState('Pães frescos, bolos e produtos regionais para o seu dia a dia.');
-  const [whatsapp, setWhatsapp] = useState('(81) 98888-7777');
-  const [address, setAddress] = useState('Rua Principal, 123 - Centro');
-  const [isSaved, setIsSaved] = useState(false);
+function ShopForm() {
+  const [shop, setShop] = useState<Shop | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [shopName, setShopName] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+  const [description, setDescription] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 3000);
-  };
+  useEffect(() => {
+    let active = true;
+    Promise.all([getShop(), getCategories()])
+      .then(([currentShop, availableCategories]) => {
+        if (!active) return;
+        setShop(currentShop);
+        setCategories(availableCategories);
+        setShopName(currentShop?.name ?? '');
+        setCategoryId(currentShop?.category_id ?? '');
+        setDescription(currentShop?.description ?? '');
+        setPhone(currentShop?.phone ?? '');
+        setAddress(currentShop?.address ?? '');
+      })
+      .catch((requestError: unknown) => {
+        if (active) setError(requestError instanceof Error ? requestError.message : 'Não foi possível carregar os dados do comércio.');
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsSaving(true);
+    setError('');
+    setSuccess('');
+    try {
+      const savedShop = await updateShop({
+        name: shopName,
+        category_id: categoryId || null,
+        description: description || null,
+        phone: phone || null,
+        address: address || null,
+      });
+      setShop(savedShop);
+      setSuccess('Dados do comércio atualizados com sucesso.');
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Não foi possível salvar os dados do comércio.');
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
-      {/* Cabeçalho */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <Link 
-          href="/" 
-          className="inline-flex items-center text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <span className="mr-2">&larr;</span> Voltar
-        </Link>
-        <div className="font-bold text-lg text-gray-900">
-          ISAC Conecta
-        </div>
-      </header>
+    <main className="mx-auto max-w-2xl px-4 py-10">
+      <span className="text-xs font-bold tracking-wider text-gray-500 uppercase">SEU NEGÓCIO</span>
+      <h1 className="mt-1 mb-2 text-3xl font-extrabold text-gray-900">Dados do comércio</h1>
+      <p className="mb-8 text-gray-600">Gerencie as informações do seu comércio aqui.</p>
 
-      {/* Conteúdo */}
-      <main className="max-w-2xl mx-auto px-4 py-10">
-        <span className="text-xs font-bold tracking-wider text-gray-500 uppercase">
-          SEU NEGÓCIO
-        </span>
-        <h1 className="text-3xl font-extrabold text-gray-900 mt-1 mb-2">
-          Dados do comércio
-        </h1>
-        <p className="text-gray-600 mb-8">
-          Gerencie as informações do seu comércio aqui.
-        </p>
-
-        {isSaved && (
-          <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-sm">
-            Dados do comércio atualizados com sucesso!
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
+      {error && <p role="alert" className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p>}
+      {success && <p role="status" className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{success}</p>}
+      {isLoading ? (
+        <p className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-600">Carregando dados do comércio...</p>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-2">
-              Nome do comércio / estabelecimento
-            </label>
-            <input
-              type="text"
-              value={shopName}
-              onChange={(e) => setShopName(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 p-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent"
-              required
-            />
+            <label htmlFor="shop-name" className="mb-2 block text-sm font-semibold text-gray-800">Nome do comércio / estabelecimento</label>
+            <input id="shop-name" type="text" value={shopName} onChange={(event) => setShopName(event.target.value)} maxLength={120} required
+              className="w-full rounded-lg border border-gray-300 p-3 text-sm text-gray-900 focus:border-transparent focus:ring-2 focus:ring-emerald-600 focus:outline-none" />
           </div>
-
           <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-2">
-              Categoria principal
-            </label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 p-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent"
-            >
-              <option value="Alimentação">Alimentação</option>
-              <option value="Serviços">Serviços</option>
-              <option value="Vestuário">Vestuário</option>
-              <option value="Artesanato">Artesanato</option>
-              <option value="Outros">Outros</option>
+            <label htmlFor="shop-category" className="mb-2 block text-sm font-semibold text-gray-800">Categoria principal</label>
+            <select id="shop-category" value={categoryId} onChange={(event) => setCategoryId(event.target.value)}
+              className="w-full rounded-lg border border-gray-300 p-3 text-sm text-gray-900 focus:border-transparent focus:ring-2 focus:ring-emerald-600 focus:outline-none">
+              <option value="">Selecione uma categoria</option>
+              {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
             </select>
           </div>
-
           <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-2">
-              Descrição do negócio
-            </label>
-            <textarea
-              rows={4}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 p-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent resize-none"
-            />
+            <label htmlFor="shop-description" className="mb-2 block text-sm font-semibold text-gray-800">Descrição do negócio</label>
+            <textarea id="shop-description" rows={4} value={description} onChange={(event) => setDescription(event.target.value)} maxLength={2000}
+              className="w-full resize-none rounded-lg border border-gray-300 p-3 text-sm text-gray-900 focus:border-transparent focus:ring-2 focus:ring-emerald-600 focus:outline-none" />
           </div>
-
           <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-2">
-              WhatsApp para atendimento
-            </label>
-            <input
-              type="text"
-              value={whatsapp}
-              onChange={(e) => setWhatsapp(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 p-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent"
-            />
+            <label htmlFor="shop-phone" className="mb-2 block text-sm font-semibold text-gray-800">WhatsApp para atendimento</label>
+            <input id="shop-phone" type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} maxLength={30}
+              className="w-full rounded-lg border border-gray-300 p-3 text-sm text-gray-900 focus:border-transparent focus:ring-2 focus:ring-emerald-600 focus:outline-none" />
           </div>
-
           <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-2">
-              Endereço / Localização no bairro
-            </label>
-            <input
-              type="text"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 p-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent"
-            />
+            <label htmlFor="shop-address" className="mb-2 block text-sm font-semibold text-gray-800">Endereço / Localização no bairro</label>
+            <input id="shop-address" type="text" value={address} onChange={(event) => setAddress(event.target.value)} maxLength={200}
+              className="w-full rounded-lg border border-gray-300 p-3 text-sm text-gray-900 focus:border-transparent focus:ring-2 focus:ring-emerald-600 focus:outline-none" />
           </div>
-
           <div className="flex justify-end pt-2">
-            <button
-              type="submit"
-              className="px-5 py-2.5 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm transition-colors"
-            >
-              Salvar dados do comércio
+            <button type="submit" disabled={isSaving} className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:opacity-50">
+              {isSaving ? 'Salvando...' : shop ? 'Salvar dados do comércio' : 'Cadastrar comércio'}
             </button>
           </div>
         </form>
-      </main>
+      )}
+    </main>
+  );
+}
+
+export default function ShopPage() {
+  return (
+    <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
+      <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
+        <Link href="/" className="inline-flex items-center text-sm font-medium text-gray-600 transition-colors hover:text-gray-900">
+          <span className="mr-2">&larr;</span> Voltar
+        </Link>
+        <div className="text-lg font-bold text-gray-900">ISAC Conecta</div>
+      </header>
+      <AuthRequired><ShopForm /></AuthRequired>
     </div>
   );
 }

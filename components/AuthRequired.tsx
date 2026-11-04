@@ -2,9 +2,16 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { hasModerationPower } from '../lib/ads';
 import { useCurrentUser } from '../lib/useCurrentUser';
 
-export default function AuthRequired({ children }: { children: ReactNode }) {
+export default function AuthRequired({
+  children,
+  requiredRole,
+}: {
+  children: ReactNode;
+  requiredRole?: 'moderator';
+}) {
   const { user, isLoading, error } = useCurrentUser();
 
   if (isLoading) {
@@ -19,6 +26,16 @@ export default function AuthRequired({ children }: { children: ReactNode }) {
         <p className="font-semibold">Entre na sua conta para acessar esta página.</p>
         <Link href="/login" className="mt-3 inline-block font-semibold text-petroleo underline">
           Entrar ou criar conta
+        </Link>
+      </div>
+    );
+  }
+  if (requiredRole === 'moderator' && !hasModerationPower(user)) {
+    return (
+      <div className="m-6 rounded-lg border border-salvia bg-white p-6 text-center">
+        <p className="font-semibold">Sua conta não tem permissão para acessar a moderação.</p>
+        <Link href="/" className="mt-3 inline-block font-semibold text-petroleo underline">
+          Voltar à vitrine
         </Link>
       </div>
     );

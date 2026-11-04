@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { io } from 'next/cache';
 import { Suspense } from 'react';
-import { ArrowRight, ClipboardList, Store } from 'lucide-react';
+import { ArrowRight, Store } from 'lucide-react';
 import SmartVitrine from '../components/SmartVitrine';
+import AccountNavigation from '../components/AccountNavigation';
 import { getActiveAds, type Ad } from '../lib/ads';
 
 async function ActiveAds() {
@@ -46,13 +47,7 @@ export default function HomePage() {
             ISAC Conecta
           </Link>
           <nav aria-label="Navegação principal" className="flex items-center gap-2">
-            <Link
-              href="/moderation"
-              className="hidden min-h-11 items-center gap-2 rounded-md px-3 text-sm font-semibold text-petroleo-tinta hover:bg-areia sm:inline-flex"
-            >
-              <ClipboardList aria-hidden="true" size={17} />
-              Moderação
-            </Link>
+            <AccountNavigation />
             <Link
               href="/publish"
               className="inline-flex min-h-11 items-center gap-2 rounded-md bg-petroleo px-4 text-sm font-semibold text-white transition-colors hover:bg-petroleo-escuro focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-petroleo"
