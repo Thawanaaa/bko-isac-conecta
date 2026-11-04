@@ -1,7 +1,4 @@
-'use client';
-
-import type { User } from '@supabase/supabase-js';
-import { getSupabaseClient } from './supabase';
+import { apiRequest } from './api';
 
 export interface Category {
   id: string;
@@ -11,17 +8,18 @@ export interface Category {
 
 export interface Ad {
   id: string;
-  user_id: string;
+  user_id?: string;
   title: string;
   description: string | null;
   price: number | null;
   contact_phone: string | null;
   location: string | null;
-  is_verified: boolean;
+  is_verified?: boolean;
+  is_highlighted?: boolean;
   category_id: string;
   categories?: { name: string } | { name: string }[] | null;
   profiles?: { name: string; phone: string | null } | { name: string; phone: string | null }[] | null;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'active' | 'approved' | 'rejected';
   created_at: string;
 }
 
@@ -32,8 +30,14 @@ export interface UserProfile {
   phone: string | null;
   avatar_url: string | null;
   bio: string | null;
-  role: 'member' | 'moderator' | 'admin';
+  role: 'member' | 'moderator' | 'admin' | 'user';
   created_at: string;
+}
+
+export interface CurrentUser {
+  id: string;
+  email?: string;
+  role: string;
 }
 
 export interface Shop {
@@ -80,17 +84,6 @@ export type ModerationAction = 'approve' | 'reject';
 
 export const MAX_AD_TEXT_LENGTH = 5000;
 
-async function requireUser(): Promise<User> {
-  const { data, error } = await getSupabaseClient().auth.getUser();
-  if (error) throw new Error(`Não foi possível validar sua sessão: ${error.message}`);
-  if (!data.user) throw new Error('Entre na sua conta para continuar.');
-  return data.user;
-}
-
-function throwDatabaseError(error: { message: string; code?: string }): never {
-  throw new Error(`Erro ao acessar o banco de dados: ${error.message}`);
-}
-
 function validateAd(input: AdInput) {
   if (!input.title.trim() || input.title.trim().length > 120) {
     throw new Error('O título deve ter entre 1 e 120 caracteres.');
@@ -107,161 +100,93 @@ function validateAd(input: AdInput) {
   }
 }
 
-export async function getActiveAds(): Promise<Ad[]> {
-  const { data, error } = await getSupabaseClient()
-    .from('ads')
-    .select('*, categories(name)')
-    .eq('status', 'approved')
-    .order('created_at', { ascending: false });
-  if (error) throwDatabaseError(error);
-  return data;
+export function getCurrentUser() {
+  return apiRequest<CurrentUser>('/auth/me');
 }
 
-export async function getCategories(): Promise<Category[]> {
-  const { data, error } = await getSupabaseClient()
-    .from('categories')
-    .select('id, name, slug')
-    .order('name');
-  if (error) throwDatabaseError(error);
-  return data;
+export function signIn(email: string, password: string) {
+  return apiRequest<{ authenticated: boolean; requiresEmailConfirmation?: boolean; user: CurrentUser }>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
 }
 
-export async function getPendingAds(): Promise<Ad[]> {
-  await requireUser();
-  const { data, error } = await getSupabaseClient()
-    .from('ads')
-    .select('*, categories(name), profiles(name, phone)')
-    .eq('status', 'pending')
-    .order('created_at', { ascending: true });
-  if (error) throwDatabaseError(error);
-  return data;
+export function signUp(name: string, email: string, password: string) {
+  return apiRequest<{ authenticated: boolean; requiresEmailConfirmation: boolean; user: CurrentUser }>('/auth/signup', {
+    method: 'POST',
+    body: JSON.stringify({ name, email, password }),
+  });
 }
 
-export async function createAd(input: AdInput): Promise<Ad> {
+export function signOut() {
+  return apiRequest<{ authenticated: boolean }>('/auth/logout', { method: 'POST' });
+}
+
+export function getActiveAds() {
+  return apiRequest<Ad[]>('/ads');
+}
+
+export function getCategories() {
+  return apiRequest<Category[]>('/categories');
+}
+
+export function getPendingAds() {
+  return apiRequest<Ad[]>('/ads/moderation/pending');
+}
+
+export function createAd(input: AdInput) {
   validateAd(input);
-  const user = await requireUser();
-  const { data, error } = await getSupabaseClient()
-    .from('ads')
-    .insert({
-      ...input,
-      title: input.title.trim(),
-      description: input.description.trim() || null,
-      contact_phone: input.contact_phone.trim() || null,
-      location: input.location.trim() || null,
-      user_id: user.id,
-      status: 'pending',
-      is_verified: false,
-    })
-    .select('*, categories(name)')
-    .single();
-  if (error) throwDatabaseError(error);
-  return data;
+  return apiRequest<Ad>('/ads', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
 }
 
-export async function updateAd(id: string, input: AdInput): Promise<Ad> {
+export function updateAd(id: string, input: AdInput) {
   validateAd(input);
-  const user = await requireUser();
-  const { data, error } = await getSupabaseClient()
-    .from('ads')
-    .update({
-      ...input,
-      title: input.title.trim(),
-      description: input.description.trim() || null,
-      contact_phone: input.contact_phone.trim() || null,
-      location: input.location.trim() || null,
-      status: 'pending',
-      is_verified: false,
-    })
-    .eq('id', id)
-    .eq('user_id', user.id)
-    .select('*, categories(name)')
-    .single();
-  if (error) throwDatabaseError(error);
-  return data;
+  return apiRequest<Ad>(`/ads/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
 }
 
-export async function moderateAd(id: string, action: ModerationAction): Promise<Ad> {
-  await requireUser();
-  const { data, error } = await getSupabaseClient()
-    .from('ads')
-    .update({
-      status: action === 'approve' ? 'approved' : 'rejected',
-      is_verified: action === 'approve',
-    })
-    .eq('id', id)
-    .eq('status', 'pending')
-    .select('*, categories(name)')
-    .single();
-  if (error) throwDatabaseError(error);
-  return data;
+export function moderateAd(id: string, action: ModerationAction) {
+  return apiRequest<Ad>(`/ads/moderation/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ action, isVerified: action === 'approve' }),
+  });
 }
 
-export async function getUserAds(): Promise<Ad[]> {
-  const user = await requireUser();
-  const { data, error } = await getSupabaseClient()
-    .from('ads')
-    .select('*, categories(name)')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false });
-  if (error) throwDatabaseError(error);
-  return data;
+export function getUserAds() {
+  return apiRequest<Ad[]>('/ads/my-ads');
 }
 
-export async function deleteAd(id: string): Promise<void> {
-  const user = await requireUser();
-  const { error } = await getSupabaseClient()
-    .from('ads')
-    .delete()
-    .eq('id', id)
-    .eq('user_id', user.id)
-    .select('id')
-    .single();
-  if (error) throwDatabaseError(error);
+export function deleteAd(id: string) {
+  return apiRequest<{ success: boolean }>(`/ads/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
-export async function getUserProfile(): Promise<UserProfile> {
-  const user = await requireUser();
-  const { data, error } = await getSupabaseClient()
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
-  if (error) throwDatabaseError(error);
-  return data;
+export function getUserProfile() {
+  return apiRequest<UserProfile>('/users/profile');
 }
 
-export async function updateUserProfile(input: Pick<UserProfile, 'name' | 'phone' | 'bio'>) {
-  const user = await requireUser();
+export function updateUserProfile(input: Pick<UserProfile, 'name' | 'phone' | 'bio'>) {
   if (input.name.trim().length < 2 || input.name.trim().length > 120) {
     throw new Error('O nome deve ter entre 2 e 120 caracteres.');
   }
   if ((input.phone?.length ?? 0) > 30 || (input.bio?.length ?? 0) > 500) {
     throw new Error('O telefone ou a biografia excede o limite permitido.');
   }
-
-  const { data, error } = await getSupabaseClient()
-    .from('profiles')
-    .update({ email: user.email ?? '', ...input, name: input.name.trim() })
-    .eq('id', user.id)
-    .select('*')
-    .single();
-  if (error) throwDatabaseError(error);
-  return data as UserProfile;
+  return apiRequest<UserProfile>('/users/profile', {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
 }
 
-export async function getShop(): Promise<Shop | null> {
-  const user = await requireUser();
-  const { data, error } = await getSupabaseClient()
-    .from('shops')
-    .select('*')
-    .eq('user_id', user.id)
-    .maybeSingle();
-  if (error) throwDatabaseError(error);
-  return data;
+export function getShop() {
+  return apiRequest<Shop | null>('/shops/my-shop');
 }
 
-export async function updateShop(input: Pick<Shop, 'name' | 'description' | 'category_id' | 'phone' | 'address'>) {
-  const user = await requireUser();
+export function updateShop(input: Pick<Shop, 'name' | 'description' | 'category_id' | 'phone' | 'address'>) {
   if (input.name.trim().length < 2 || input.name.trim().length > 120) {
     throw new Error('O nome do comércio deve ter entre 2 e 120 caracteres.');
   }
@@ -269,32 +194,17 @@ export async function updateShop(input: Pick<Shop, 'name' | 'description' | 'cat
     throw new Error('A descrição ou o endereço excede o limite permitido.');
   }
   if ((input.phone?.length ?? 0) > 30) throw new Error('O telefone excede o limite permitido.');
-
-  const { data, error } = await getSupabaseClient()
-    .from('shops')
-    .upsert(
-      { ...input, name: input.name.trim(), user_id: user.id },
-      { onConflict: 'user_id' },
-    )
-    .select('*')
-    .single();
-  if (error) throwDatabaseError(error);
-  return data as Shop;
+  return apiRequest<Shop>('/shops/my-shop', {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
 }
 
-export async function deleteShop(): Promise<void> {
-  const user = await requireUser();
-  const { error } = await getSupabaseClient()
-    .from('shops')
-    .delete()
-    .eq('user_id', user.id)
-    .select('id')
-    .single();
-  if (error) throwDatabaseError(error);
+export function deleteShop() {
+  return apiRequest<{ success: boolean }>('/shops/my-shop', { method: 'DELETE' });
 }
 
-export async function submitReport(input: ReportInput): Promise<void> {
-  const user = await requireUser();
+export function submitReport(input: ReportInput) {
   if (!input.ad_id) throw new Error('O anúncio da denúncia não foi identificado.');
   if (!['spam', 'fraud', 'inappropriate', 'expired'].includes(input.reason)) {
     throw new Error('Selecione um motivo válido para a denúncia.');
@@ -302,93 +212,57 @@ export async function submitReport(input: ReportInput): Promise<void> {
   if (input.description.trim().length > 140) {
     throw new Error('Os detalhes devem ter no máximo 140 caracteres.');
   }
-
-  const { error } = await getSupabaseClient().from('reports').insert({
-    ad_id: input.ad_id,
-    reporter_id: user.id,
-    reason: input.reason,
-    description: input.description.trim() || null,
+  return apiRequest<Report>('/reports', {
+    method: 'POST',
+    body: JSON.stringify(input),
   });
-  if (error) throwDatabaseError(error);
 }
 
-export async function getReports(): Promise<Report[]> {
-  await requireUser();
-  const { data, error } = await getSupabaseClient()
-    .from('reports')
-    .select('*, ads(title), profiles(name)')
-    .order('created_at', { ascending: false });
-  if (error) throwDatabaseError(error);
-  return data;
-}
-
-export async function updateReportStatus(id: string, status: ReportStatus): Promise<Report> {
-  await requireUser();
-  const { data, error } = await getSupabaseClient()
-    .from('reports')
-    .update({ status })
-    .eq('id', id)
-    .select('*, ads(title), profiles(name)')
-    .single();
-  if (error) throwDatabaseError(error);
-  return data;
-}
-
-export async function deleteReport(id: string): Promise<void> {
-  await requireUser();
-  const { error } = await getSupabaseClient().from('reports').delete().eq('id', id).select('id').single();
-  if (error) throwDatabaseError(error);
-}
-
-export async function createCategory(name: string): Promise<Category> {
-  await requireUser();
-  const normalizedName = name.trim();
-  if (normalizedName.length < 2 || normalizedName.length > 80) {
-    throw new Error('O nome da categoria deve ter entre 2 e 80 caracteres.');
+export function submitRawMessage(content: string) {
+  const normalizedContent = content.trim();
+  if (!normalizedContent) throw new Error('Informe a mensagem do anúncio.');
+  if (normalizedContent.length > MAX_AD_TEXT_LENGTH) {
+    throw new Error(`A mensagem deve ter no máximo ${MAX_AD_TEXT_LENGTH} caracteres.`);
   }
-  const slug = normalizedName
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
-  if (!slug) throw new Error('O nome da categoria deve conter letras ou números.');
-  const { data, error } = await getSupabaseClient()
-    .from('categories')
-    .insert({ name: normalizedName, slug })
-    .select('id, name, slug')
-    .single();
-  if (error) throwDatabaseError(error);
-  return data;
+  return apiRequest<{ id: string; status: 'pending'; created_at: string }>('/ads/raw-messages', {
+    method: 'POST',
+    body: JSON.stringify({ content: normalizedContent }),
+  });
 }
 
-export async function updateCategory(id: string, name: string): Promise<Category> {
-  await requireUser();
-  const normalizedName = name.trim();
-  if (normalizedName.length < 2 || normalizedName.length > 80) {
-    throw new Error('O nome da categoria deve ter entre 2 e 80 caracteres.');
-  }
-  const slug = normalizedName
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
-  if (!slug) throw new Error('O nome da categoria deve conter letras ou números.');
-  const { data, error } = await getSupabaseClient()
-    .from('categories')
-    .update({ name: normalizedName, slug })
-    .eq('id', id)
-    .select('id, name, slug')
-    .single();
-  if (error) throwDatabaseError(error);
-  return data;
+export function getReports() {
+  return apiRequest<Report[]>('/reports');
 }
 
-export async function deleteCategory(id: string): Promise<void> {
-  await requireUser();
-  const { error } = await getSupabaseClient().from('categories').delete().eq('id', id).select('id').single();
-  if (error) throwDatabaseError(error);
+export function updateReportStatus(id: string, status: ReportStatus) {
+  return apiRequest<Report>(`/reports/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+
+export function deleteReport(id: string) {
+  return apiRequest<{ success: boolean }>(`/reports/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export function createCategory(name: string) {
+  return apiRequest<Category>('/categories', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function updateCategory(id: string, name: string) {
+  return apiRequest<Category>(`/categories/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function deleteCategory(id: string) {
+  return apiRequest<{ success: boolean }>(`/categories/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
 }
 
 export function getCategoryName(ad: Ad) {

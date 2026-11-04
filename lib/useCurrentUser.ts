@@ -1,52 +1,37 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { SupabaseClient, User } from '@supabase/supabase-js';
-import { getSupabaseClient } from './supabase';
+import { ApiRequestError } from './api';
+import { getCurrentUser, type CurrentUser } from './ads';
 
 export function useCurrentUser() {
-  const [supabaseState] = useState<{ client: SupabaseClient | null; error: string }>(() => {
-    try {
-      return { client: getSupabaseClient(), error: '' };
-    } catch (clientError) {
-      return {
-        client: null,
-        error: clientError instanceof Error ? clientError.message : 'Não foi possível inicializar o Supabase.',
-      };
-    }
-  });
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(Boolean(supabaseState.client));
-  const [error, setError] = useState(supabaseState.error);
+  const [user, setUser] = useState<CurrentUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    const supabase = supabaseState.client;
-    if (!supabase) return;
     let active = true;
 
-    supabase.auth.getUser().then(({ data, error: authError }) => {
-      if (!active) return;
-      if (authError) setError(`Não foi possível validar sua sessão: ${authError.message}`);
-      setUser(data.user);
-      setIsLoading(false);
-    }).catch((authError: unknown) => {
-      if (!active) return;
-      setError(authError instanceof Error ? authError.message : 'Não foi possível validar sua sessão.');
-      setIsLoading(false);
-    });
-
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!active) return;
-      setUser(session?.user ?? null);
-      setError('');
-      setIsLoading(false);
-    });
+    getCurrentUser()
+      .then((currentUser) => {
+        if (active) setUser(currentUser);
+      })
+      .catch((requestError: unknown) => {
+        if (!active) return;
+        if (requestError instanceof ApiRequestError && requestError.status === 401) {
+          setUser(null);
+          return;
+        }
+        setError(requestError instanceof Error ? requestError.message : 'Não foi possível validar sua sessão.');
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
 
     return () => {
       active = false;
-      subscription.subscription.unsubscribe();
     };
-  }, [supabaseState.client]);
+  }, []);
 
   return { user, isLoading, error };
 }
