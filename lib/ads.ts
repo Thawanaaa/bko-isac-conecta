@@ -1,7 +1,7 @@
 import { apiRequest } from './api';
 
 export interface Category {
-  id: string;
+  id: string | number;
   name: string;
   slug: string;
 }
@@ -16,7 +16,7 @@ export interface Ad {
   location: string | null;
   is_verified?: boolean;
   is_highlighted?: boolean;
-  category_id: string;
+  category_id: string | number;
   categories?: { name: string } | { name: string }[] | null;
   profiles?: { name: string; phone: string | null } | { name: string; phone: string | null }[] | null;
   status: 'pending' | 'active' | 'approved' | 'rejected';
@@ -53,7 +53,7 @@ export interface Shop {
   user_id: string;
   name: string;
   description: string | null;
-  category_id: string | null;
+  category_id: string | number | null;
   cnpj: string | null;
   address: string | null;
   phone: string | null;
