@@ -120,7 +120,12 @@ export function signIn(email: string, password: string) {
 }
 
 export function signUp(name: string, email: string, password: string) {
-  return apiRequest<{ authenticated: boolean; requiresEmailConfirmation: boolean; user: CurrentUser }>('/auth/signup', {
+  return apiRequest<{
+    authenticated: boolean;
+    requiresEmailConfirmation: boolean;
+    confirmationEmailRequested: boolean;
+    user: CurrentUser;
+  }>('/auth/signup', {
     method: 'POST',
     body: JSON.stringify({ name, email, password }),
   });

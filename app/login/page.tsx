@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { Eye, EyeOff } from 'lucide-react';
 import { signIn, signUp } from '../../lib/ads';
 
 export default function LoginPage() {
@@ -13,6 +14,8 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isPasswordConfirmationVisible, setIsPasswordConfirmationVisible] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -49,7 +52,11 @@ export default function LoginPage() {
         ? await signUp(name.trim(), email.trim(), password)
         : await signIn(email.trim(), password);
       if (mode === 'signup' && result.requiresEmailConfirmation) {
-        setMessage('Conta criada. Confirme seu e-mail antes de entrar.');
+        if (result.confirmationEmailRequested) {
+          setMessage('O serviço de autenticação aceitou a solicitação de envio da confirmação. Isso não garante a entrega na caixa de entrada; verifique também spam e lixo eletrônico.');
+        } else {
+          setError('Não foi possível confirmar uma nova solicitação de envio para este e-mail. Se você já tem uma conta, tente entrar; caso contrário, tente novamente mais tarde.');
+        }
       } else {
         router.replace('/');
         router.refresh();
@@ -85,16 +92,34 @@ export default function LoginPage() {
           </div>
           <div>
             <label htmlFor="password" className="block text-sm font-semibold">Senha</label>
-            <input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={8}
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required
-              className="mt-1 min-h-11 w-full rounded-md border border-salvia p-3" />
+            <div className="mt-1 flex min-h-11 items-center rounded-md border border-salvia focus-within:outline focus-within:outline-2 focus-within:outline-petroleo">
+              <input id="password" type={isPasswordVisible ? 'text' : 'password'} value={password}
+                onChange={(event) => setPassword(event.target.value)} minLength={8}
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required
+                className="min-w-0 flex-1 rounded-md p-3 focus:outline-none" />
+              <button type="button" onClick={() => setIsPasswordVisible((visible) => !visible)}
+                aria-label={isPasswordVisible ? 'Ocultar senha' : 'Mostrar senha'} aria-pressed={isPasswordVisible}
+                className="mr-1 grid size-9 shrink-0 place-items-center rounded text-petroleo hover:bg-areia focus-visible:outline focus-visible:outline-2 focus-visible:outline-petroleo">
+                {isPasswordVisible ? <EyeOff aria-hidden="true" size={18} /> : <Eye aria-hidden="true" size={18} />}
+              </button>
+            </div>
           </div>
           {mode === 'signup' && (
             <div>
               <label htmlFor="passwordConfirmation" className="block text-sm font-semibold">Confirmação de senha</label>
-              <input id="passwordConfirmation" type="password" value={passwordConfirmation}
-                onChange={(event) => setPasswordConfirmation(event.target.value)} autoComplete="new-password" required
-                className="mt-1 min-h-11 w-full rounded-md border border-salvia p-3" />
+              <div className="mt-1 flex min-h-11 items-center rounded-md border border-salvia focus-within:outline focus-within:outline-2 focus-within:outline-petroleo">
+                <input id="passwordConfirmation" type={isPasswordConfirmationVisible ? 'text' : 'password'}
+                  value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)}
+                  autoComplete="new-password" required className="min-w-0 flex-1 rounded-md p-3 focus:outline-none" />
+                <button type="button" onClick={() => setIsPasswordConfirmationVisible((visible) => !visible)}
+                  aria-label={isPasswordConfirmationVisible ? 'Ocultar confirmação de senha' : 'Mostrar confirmação de senha'}
+                  aria-pressed={isPasswordConfirmationVisible}
+                  className="mr-1 grid size-9 shrink-0 place-items-center rounded text-petroleo hover:bg-areia focus-visible:outline focus-visible:outline-2 focus-visible:outline-petroleo">
+                  {isPasswordConfirmationVisible
+                    ? <EyeOff aria-hidden="true" size={18} />
+                    : <Eye aria-hidden="true" size={18} />}
+                </button>
+              </div>
             </div>
           )}
           <button type="submit" disabled={isSubmitting}
