@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { ArrowRight } from 'lucide-react';
 import { hasAdminPower, hasModerationPower, signOut as apiSignOut } from '../lib/ads';
 import { useCurrentUser } from '../lib/useCurrentUser';
 
@@ -19,8 +20,19 @@ export default function AccountNavigation() {
     }
   }
 
-  if (isLoading) return null;
-  if (authError) return <span role="alert" className="text-xs text-red-700">{authError}</span>;
+  if (isLoading) {
+    return <span role="status" className="text-sm text-petroleo-tinta/70">Verificando acesso...</span>;
+  }
+  if (authError) {
+    return (
+      <>
+        <span role="alert" className="sr-only">{authError}</span>
+        <Link href="/login" className="inline-flex min-h-11 items-center rounded-md px-3 text-sm font-semibold hover:bg-areia">
+          Entrar
+        </Link>
+      </>
+    );
+  }
   if (!user) {
     return <Link href="/login" className="inline-flex min-h-11 items-center rounded-md px-3 text-sm font-semibold hover:bg-areia">Entrar</Link>;
   }
@@ -37,6 +49,13 @@ export default function AccountNavigation() {
           Usuários
         </Link>
       )}
+      <Link
+        href="/publish"
+        className="inline-flex min-h-11 items-center gap-2 rounded-md bg-petroleo px-4 text-sm font-semibold text-white transition-colors hover:bg-petroleo-escuro focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-petroleo"
+      >
+        Publicar
+        <ArrowRight aria-hidden="true" size={16} />
+      </Link>
       <Link href="/my-ads" className="hidden min-h-11 items-center rounded-md px-2 text-sm font-semibold hover:bg-areia md:inline-flex">Meus anúncios</Link>
       <Link href="/profile" className="hidden min-h-11 items-center rounded-md px-2 text-sm font-semibold hover:bg-areia sm:inline-flex">Perfil</Link>
       <Link href="/shop" className="hidden min-h-11 items-center rounded-md px-2 text-sm font-semibold hover:bg-areia lg:inline-flex">Comércio</Link>

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { io } from 'next/cache';
 import { Suspense } from 'react';
-import { ArrowRight, Store } from 'lucide-react';
+import { Store } from 'lucide-react';
 import SmartVitrine from '../components/SmartVitrine';
 import AccountNavigation from '../components/AccountNavigation';
 import { getActiveAds, type Ad } from '../lib/ads';
@@ -48,13 +48,6 @@ export default function HomePage() {
           </Link>
           <nav aria-label="Navegação principal" className="flex items-center gap-2">
             <AccountNavigation />
-            <Link
-              href="/publish"
-              className="inline-flex min-h-11 items-center gap-2 rounded-md bg-petroleo px-4 text-sm font-semibold text-white transition-colors hover:bg-petroleo-escuro focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-petroleo"
-            >
-              Publicar
-              <ArrowRight aria-hidden="true" size={16} />
-            </Link>
           </nav>
         </div>
       </header>
