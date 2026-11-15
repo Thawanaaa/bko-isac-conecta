@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -24,7 +25,20 @@ export default function LoginPage() {
       setError('Informe seu nome completo.');
       return;
     }
-    if (password.length < 8) {
+    if (mode === 'signup' && (
+      password.length < 8
+      || !/\p{Lu}/u.test(password)
+      || !/\p{N}/u.test(password)
+      || !/[^\p{L}\p{N}]/u.test(password)
+    )) {
+      setError('A senha deve ter pelo menos 8 caracteres, uma letra maiúscula, um número e um caractere especial.');
+      return;
+    }
+    if (mode === 'signup' && password !== passwordConfirmation) {
+      setError('As senhas não coincidem.');
+      return;
+    }
+    if (mode === 'login' && password.length < 8) {
       setError('A senha deve ter pelo menos 8 caracteres.');
       return;
     }
@@ -75,6 +89,14 @@ export default function LoginPage() {
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required
               className="mt-1 min-h-11 w-full rounded-md border border-salvia p-3" />
           </div>
+          {mode === 'signup' && (
+            <div>
+              <label htmlFor="passwordConfirmation" className="block text-sm font-semibold">Confirmação de senha</label>
+              <input id="passwordConfirmation" type="password" value={passwordConfirmation}
+                onChange={(event) => setPasswordConfirmation(event.target.value)} autoComplete="new-password" required
+                className="mt-1 min-h-11 w-full rounded-md border border-salvia p-3" />
+            </div>
+          )}
           <button type="submit" disabled={isSubmitting}
             className="min-h-11 w-full rounded-md bg-petroleo px-4 font-bold text-white disabled:opacity-60">
             {isSubmitting ? 'Aguarde...' : mode === 'login' ? 'Entrar' : 'Criar conta'}
